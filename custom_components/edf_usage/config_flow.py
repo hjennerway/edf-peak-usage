@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -9,9 +10,7 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.core import callback
-from homeassistant.helpers import selector
 
-from .api import EDFUsageError
 from .const import (
     CONF_API_TOKEN,
     CONF_CUSTOMER_ID,
@@ -35,7 +34,7 @@ class EDFUsageConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self,
         user_input: dict[str, Any] | None = None,
-    ) -> config_entries.FlowResult:
+    ) -> Any:
         """Handle the initial step."""
 
         errors: dict[str, str] = {}
@@ -64,11 +63,7 @@ class EDFUsageConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_CUSTOMER_ID): str,
-                    vol.Required(CONF_API_TOKEN): selector.TextSelector(
-                        selector.TextSelectorConfig(
-                            type=selector.TextSelectorType.PASSWORD,
-                        )
-                    ),
+                    vol.Required(CONF_API_TOKEN): str,
                 }
             ),
             errors=errors,
@@ -78,7 +73,7 @@ class EDFUsageConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
-    ) -> EDFUsageOptionsFlow:
+    ) -> Any:
         """Return the options flow."""
 
         return EDFUsageOptionsFlow(config_entry)
@@ -95,7 +90,7 @@ class EDFUsageOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(
         self,
         user_input: dict[str, Any] | None = None,
-    ) -> config_entries.FlowResult:
+    ) -> Any:
         """Manage EDF Usage options."""
 
         errors: dict[str, str] = {}
@@ -104,7 +99,7 @@ class EDFUsageOptionsFlow(config_entries.OptionsFlow):
                 _validate_hhmm(user_input[CONF_OFF_PEAK_START])
                 _validate_hhmm(user_input[CONF_OFF_PEAK_END])
                 ZoneInfo(user_input[CONF_TIMEZONE])
-            except EDFUsageError:
+            except ValueError:
                 errors["base"] = "invalid_time"
             except ZoneInfoNotFoundError:
                 errors["base"] = "invalid_timezone"
@@ -142,8 +137,6 @@ class EDFUsageOptionsFlow(config_entries.OptionsFlow):
 
 
 def _validate_hhmm(value: str) -> None:
-    """Validate an HH:MM string using the API parser."""
+    """Validate an HH:MM string."""
 
-    from .api import _parse_hhmm
-
-    _parse_hhmm(value)
+    datetime.strptime(value, "%H:%M")

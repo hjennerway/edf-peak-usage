@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from inspect import isawaitable
 from pathlib import Path
 
-from homeassistant.components.http import StaticPathConfig, async_register_static_paths
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
@@ -38,16 +38,27 @@ async def _async_register_frontend(hass: HomeAssistant) -> None:
     if domain_data.get("frontend_registered"):
         return
 
-    await async_register_static_paths(
-        hass,
-        [
-            StaticPathConfig(
-                CARD_URL,
-                str(Path(__file__).parent / "www" / "edf-usage-card.js"),
-                True,
-            )
-        ],
-    )
+    card_path = str(Path(__file__).parent / "www" / "edf-usage-card.js")
+
+    try:
+        from homeassistant.components.http import (
+            StaticPathConfig,
+            async_register_static_paths,
+        )
+    except ImportError:
+        result = hass.http.async_register_static_path(
+            CARD_URL,
+            card_path,
+            cache_headers=True,
+        )
+        if isawaitable(result):
+            await result
+    else:
+        await async_register_static_paths(
+            hass,
+            [StaticPathConfig(CARD_URL, card_path, True)],
+        )
+
     domain_data["frontend_registered"] = True
 
 
