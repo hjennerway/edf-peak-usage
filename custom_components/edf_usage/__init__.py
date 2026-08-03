@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+from homeassistant.components.http import StaticPathConfig, async_register_static_paths
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
@@ -25,10 +28,33 @@ from .const import (
 from .coordinator import EDFUsageCoordinator
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
+CARD_URL = f"/{DOMAIN}/edf-usage-card.js"
+
+
+async def _async_register_frontend(hass: HomeAssistant) -> None:
+    """Expose the bundled Lovelace card from the installed integration."""
+
+    domain_data = hass.data.setdefault(DOMAIN, {})
+    if domain_data.get("frontend_registered"):
+        return
+
+    await async_register_static_paths(
+        hass,
+        [
+            StaticPathConfig(
+                CARD_URL,
+                str(Path(__file__).parent / "www" / "edf-usage-card.js"),
+                True,
+            )
+        ],
+    )
+    domain_data["frontend_registered"] = True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up EDF Usage from a config entry."""
+
+    await _async_register_frontend(hass)
 
     options = entry.options
     session = async_get_clientsession(hass)

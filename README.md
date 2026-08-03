@@ -11,17 +11,33 @@ This repository contains a Home Assistant custom integration for EDF Energy peak
 
 ## Install
 
-1. Copy `custom_components/edf_usage` into Home Assistant's `/config/custom_components/edf_usage`.
-2. Copy `www/edf-usage-card.js` into Home Assistant's `/config/www/edf-usage-card.js`.
+### HACS
+
+1. Add this repository to HACS as a custom repository with category `Integration`.
+2. Install `EDF Usage`.
 3. Restart Home Assistant.
-4. Add the dashboard resource:
+4. Add the integration from Settings > Devices & services > Add Integration > EDF Usage.
+5. Add the dashboard resource:
 
 ```yaml
-url: /local/edf-usage-card.js
+url: /edf_usage/edf-usage-card.js
 type: module
 ```
 
-5. Add the integration from Settings > Devices & services > Add Integration > EDF Usage.
+HACS needs a GitHub release with a valid version tag, for example `v0.1.0`. If the repository has no releases, HACS may fall back to a commit hash such as `561f66b`, which cannot be used as an integration version.
+
+### Manual
+
+1. Copy `custom_components/edf_usage` into Home Assistant's `/config/custom_components/edf_usage`.
+2. Restart Home Assistant.
+3. Add the dashboard resource:
+
+```yaml
+url: /edf_usage/edf-usage-card.js
+type: module
+```
+
+4. Add the integration from Settings > Devices & services > Add Integration > EDF Usage.
 
 The integration asks for your EDF customer/account ID and EDF API token. The default API endpoint is `https://api.edfgb-kraken.energy/v1/graphql/`.
 

@@ -1,0 +1,7 @@
+{
+  "country": "GB",
+  "hide_default_branch": true,
+  "homeassistant": "2024.6.0",
+  "name": "EDF Usage",
+  "render_readme": true
+}
