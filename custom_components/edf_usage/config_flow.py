@@ -38,6 +38,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             customer_id = user_input[CONF_CUSTOMER_ID].strip()
+            api_token = _normalise_api_token(user_input[CONF_API_TOKEN])
             await self.async_set_unique_id(customer_id)
             self._abort_if_unique_id_configured()
 
@@ -45,7 +46,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 title=f"EDF Usage {customer_id}",
                 data={
                     CONF_CUSTOMER_ID: customer_id,
-                    CONF_API_TOKEN: user_input[CONF_API_TOKEN].strip(),
+                    CONF_API_TOKEN: api_token,
                 },
                 options={
                     CONF_GRAPHQL_ENDPOINT: DEFAULT_GRAPHQL_ENDPOINT,
@@ -65,3 +66,14 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             ),
             errors=errors,
         )
+
+
+def _normalise_api_token(value: str) -> str:
+    """Normalise tokens pasted from EDF docs, browsers, or terminals."""
+
+    token = str(value or "").strip().strip("\"'")
+    if token.lower().startswith("authorization:"):
+        token = token.split(":", 1)[1].strip()
+    if token.lower().startswith("bearer "):
+        token = token[7:].strip()
+    return "".join(token.split())

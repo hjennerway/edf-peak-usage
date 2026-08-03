@@ -82,7 +82,7 @@ class EDFUsageApi:
 
         self._session = session
         self._customer_id = customer_id
-        self._api_token = api_token
+        self._authorization_header = _format_authorization_header(api_token)
         self._graphql_endpoint = graphql_endpoint
         self._off_peak_start = _parse_hhmm(off_peak_start)
         self._off_peak_end = _parse_hhmm(off_peak_end)
@@ -164,7 +164,7 @@ class EDFUsageApi:
         """Post a GraphQL request to EDF."""
 
         headers = {
-            "Authorization": f"Bearer {self._api_token}",
+            "Authorization": self._authorization_header,
             "Content-Type": "application/json",
         }
         try:
@@ -180,6 +180,8 @@ class EDFUsageApi:
             if err.status in (401, 403):
                 raise EDFUsageAuthError("EDF rejected the configured API token") from err
             raise EDFUsageError(f"EDF HTTP error {err.status}") from err
+        except ValueError as err:
+            raise EDFUsageAuthError(f"Invalid EDF API token format: {err}") from err
         except Exception as err:  # noqa: BLE001 - surfaced as Home Assistant update failure
             raise EDFUsageError(f"Unable to contact EDF: {err}") from err
 
@@ -410,6 +412,26 @@ def _parse_hhmm(value: str) -> time:
     except ValueError as err:
         raise EDFUsageError(f"Invalid time '{value}', expected HH:MM") from err
     return parsed.time()
+
+
+def _format_authorization_header(value: str) -> str:
+    """Return a valid bearer authorization header value."""
+
+    token = _normalise_api_token(value)
+    if not token:
+        raise EDFUsageAuthError("EDF API token is empty")
+    return f"Bearer {token}"
+
+
+def _normalise_api_token(value: str) -> str:
+    """Normalise tokens pasted from EDF docs, browsers, or terminals."""
+
+    token = str(value or "").strip().strip("\"'")
+    if token.lower().startswith("authorization:"):
+        token = token.split(":", 1)[1].strip()
+    if token.lower().startswith("bearer "):
+        token = token[7:].strip()
+    return "".join(token.split())
 
 
 def _parse_datetime(value: Any) -> datetime | None:
