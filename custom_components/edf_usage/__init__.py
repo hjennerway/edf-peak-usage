@@ -31,6 +31,12 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 CARD_URL = f"/{DOMAIN}/edf-usage-card.js"
 
 
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    """Set up EDF Usage."""
+
+    return True
+
+
 async def _async_register_frontend(hass: HomeAssistant) -> None:
     """Expose the bundled Lovelace card from the installed integration."""
 
