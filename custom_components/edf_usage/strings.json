@@ -1,0 +1,54 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "EDF Usage",
+        "description": "Connect EDF usage polling with an EDF customer/account ID and API token.",
+        "data": {
+          "customer_id": "EDF customer/account ID",
+          "api_token": "EDF API token"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "This EDF account is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "EDF Usage options",
+        "description": "Set the EDF GraphQL endpoint and the local off-peak window used when EDF does not return an explicit band label.",
+        "data": {
+          "graphql_endpoint": "GraphQL endpoint",
+          "timezone": "Timezone",
+          "off_peak_start": "Off-peak start",
+          "off_peak_end": "Off-peak end"
+        }
+      }
+    },
+    "error": {
+      "invalid_time": "Use HH:MM format, for example 23:00.",
+      "invalid_timezone": "Use an IANA timezone name, for example Europe/London."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "weekly_peak_usage": {
+        "name": "Weekly peak usage"
+      },
+      "weekly_off_peak_usage": {
+        "name": "Weekly off-peak usage"
+      },
+      "weekly_total_usage": {
+        "name": "Weekly total usage"
+      },
+      "weekly_peak_percentage": {
+        "name": "Weekly peak percentage"
+      },
+      "weekly_off_peak_percentage": {
+        "name": "Weekly off-peak percentage"
+      }
+    }
+  }
+}
