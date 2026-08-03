@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from inspect import isawaitable
+import logging
 from pathlib import Path
 
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
@@ -27,6 +29,8 @@ from .const import (
 )
 from .coordinator import EDFUsageCoordinator
 
+_LOGGER = logging.getLogger(__name__)
+
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 CARD_URL = f"/{DOMAIN}/edf-usage-card.js"
 
@@ -47,23 +51,25 @@ async def _async_register_frontend(hass: HomeAssistant) -> None:
     card_path = str(Path(__file__).parent / "www" / "edf-usage-card.js")
 
     try:
-        from homeassistant.components.http import (
-            StaticPathConfig,
-            async_register_static_paths,
-        )
-    except ImportError:
-        result = hass.http.async_register_static_path(
-            CARD_URL,
-            card_path,
-            cache_headers=True,
-        )
+        if hasattr(hass.http, "async_register_static_paths"):
+            result = hass.http.async_register_static_paths(
+                [StaticPathConfig(CARD_URL, card_path, True)]
+            )
+        elif hasattr(hass.http, "register_static_path"):
+            result = hass.http.register_static_path(
+                CARD_URL,
+                card_path,
+                cache_headers=True,
+            )
+        else:
+            _LOGGER.warning("Unable to register EDF Usage card static path")
+            return
+
         if isawaitable(result):
             await result
-    else:
-        await async_register_static_paths(
-            hass,
-            [StaticPathConfig(CARD_URL, card_path, True)],
-        )
+    except Exception as err:  # noqa: BLE001 - card registration should not block sensors
+        _LOGGER.warning("Unable to register EDF Usage card static path: %s", err)
+        return
 
     domain_data["frontend_registered"] = True
 
