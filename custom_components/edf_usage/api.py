@@ -82,7 +82,8 @@ class EDFUsageApi:
 
         self._session = session
         self._customer_id = customer_id
-        self._authorization_header = _format_authorization_header(api_token)
+        self._api_key = _normalise_api_token(api_token)
+        self._authorization_header: str | None = None
         self._graphql_endpoint = graphql_endpoint
         self._off_peak_start = _parse_hhmm(off_peak_start)
         self._off_peak_end = _parse_hhmm(off_peak_end)
@@ -91,6 +92,8 @@ class EDFUsageApi:
 
     async def async_get_weekly_usage(self) -> UsageSummary:
         """Fetch and classify the last seven days of electricity usage."""
+
+        await self._ensure_authorization_header()
 
         end = datetime.now(self._tzinfo)
         start = end - timedelta(days=7)
@@ -164,9 +167,11 @@ class EDFUsageApi:
         """Post a GraphQL request to EDF."""
 
         headers = {
-            "Authorization": self._authorization_header,
             "Content-Type": "application/json",
         }
+        if self._authorization_header is not None:
+            headers["Authorization"] = self._authorization_header
+
         try:
             response = await self._session.post(
                 self._graphql_endpoint,
@@ -197,6 +202,44 @@ class EDFUsageApi:
             raise EDFUsageError(messages)
 
         return payload.get("data") or {}
+
+    async def _ensure_authorization_header(self) -> None:
+        """Ensure the client has a Kraken token ready for authenticated queries."""
+
+        if self._authorization_header is not None:
+            return
+
+        if _looks_like_kraken_token(self._api_key):
+            self._authorization_header = self._api_key
+            return
+
+        token = await self._obtain_kraken_token(self._api_key)
+        self._authorization_header = token
+
+    async def _obtain_kraken_token(self, api_key: str) -> str:
+        """Exchange an account-user API key for a Kraken token."""
+
+        if not api_key:
+            raise EDFUsageAuthError("EDF API key is empty")
+
+        previous_header = self._authorization_header
+        self._authorization_header = None
+        try:
+            payload = await self._graphql(
+                OBTAIN_KRAKEN_TOKEN_MUTATION,
+                {"input": {"APIKey": api_key}},
+            )
+        finally:
+            self._authorization_header = previous_header
+
+        token = (
+            (payload.get("obtainKrakenToken") or {}).get("token")
+            if isinstance(payload, dict)
+            else None
+        )
+        if not token:
+            raise EDFUsageAuthError("EDF did not return a Kraken token for the API key")
+        return _normalise_api_token(token)
 
     def _parse_gbr_cost_of_usage(self, data: dict[str, Any]) -> list[UsageInterval]:
         """Parse the currently documented GB cost-of-usage shape."""
@@ -403,6 +446,14 @@ query EDFMeterConsumption(
 }
 """
 
+OBTAIN_KRAKEN_TOKEN_MUTATION = """
+mutation EDFObtainKrakenToken($input: ObtainJSONWebTokenInput!) {
+  obtainKrakenToken(input: $input) {
+    token
+  }
+}
+"""
+
 
 def _parse_hhmm(value: str) -> time:
     """Parse a Home Assistant option in HH:MM form."""
@@ -414,15 +465,6 @@ def _parse_hhmm(value: str) -> time:
     return parsed.time()
 
 
-def _format_authorization_header(value: str) -> str:
-    """Return a valid bearer authorization header value."""
-
-    token = _normalise_api_token(value)
-    if not token:
-        raise EDFUsageAuthError("EDF API token is empty")
-    return f"Bearer {token}"
-
-
 def _normalise_api_token(value: str) -> str:
     """Normalise tokens pasted from EDF docs, browsers, or terminals."""
 
@@ -432,6 +474,12 @@ def _normalise_api_token(value: str) -> str:
     if token.lower().startswith("bearer "):
         token = token[7:].strip()
     return "".join(token.split())
+
+
+def _looks_like_kraken_token(value: str) -> bool:
+    """Return whether a value looks like an already-issued Kraken JWT."""
+
+    return value.startswith("eyJ") and value.count(".") == 2
 
 
 def _parse_datetime(value: Any) -> datetime | None:

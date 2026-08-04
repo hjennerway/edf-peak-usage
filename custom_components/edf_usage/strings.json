@@ -3,10 +3,10 @@
     "step": {
       "user": {
         "title": "EDF Usage",
-        "description": "Connect EDF usage polling with an EDF customer/account ID and API token.",
+        "description": "Connect EDF usage polling with an EDF customer/account ID and account-user API key.",
         "data": {
           "customer_id": "EDF customer/account ID",
-          "api_token": "EDF API token"
+          "api_token": "EDF API key"
         }
       }
     },
