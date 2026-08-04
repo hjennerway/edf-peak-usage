@@ -40,6 +40,7 @@ def _round(value: Decimal) -> float:
 SENSORS: tuple[EDFUsageSensorDescription, ...] = (
     EDFUsageSensorDescription(
         key="weekly_peak_usage",
+        name="Weekly peak usage",
         translation_key="weekly_peak_usage",
         device_class=SensorDeviceClass.ENERGY,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
@@ -48,6 +49,7 @@ SENSORS: tuple[EDFUsageSensorDescription, ...] = (
     ),
     EDFUsageSensorDescription(
         key="weekly_off_peak_usage",
+        name="Weekly off-peak usage",
         translation_key="weekly_off_peak_usage",
         device_class=SensorDeviceClass.ENERGY,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
@@ -56,6 +58,7 @@ SENSORS: tuple[EDFUsageSensorDescription, ...] = (
     ),
     EDFUsageSensorDescription(
         key="weekly_total_usage",
+        name="Weekly total usage",
         translation_key="weekly_total_usage",
         device_class=SensorDeviceClass.ENERGY,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
@@ -64,6 +67,7 @@ SENSORS: tuple[EDFUsageSensorDescription, ...] = (
     ),
     EDFUsageSensorDescription(
         key="weekly_peak_percentage",
+        name="Weekly peak percentage",
         translation_key="weekly_peak_percentage",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -71,6 +75,7 @@ SENSORS: tuple[EDFUsageSensorDescription, ...] = (
     ),
     EDFUsageSensorDescription(
         key="weekly_off_peak_percentage",
+        name="Weekly off-peak percentage",
         translation_key="weekly_off_peak_percentage",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
