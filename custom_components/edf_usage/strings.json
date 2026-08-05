@@ -33,6 +33,11 @@
     }
   },
   "entity": {
+    "button": {
+      "refresh": {
+        "name": "Refresh usage"
+      }
+    },
     "sensor": {
       "weekly_peak_usage": {
         "name": "Weekly peak usage"

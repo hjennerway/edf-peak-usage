@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from inspect import isawaitable
 import logging
 from pathlib import Path
@@ -9,7 +10,7 @@ from pathlib import Path
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import EDFUsageApi
@@ -26,17 +27,46 @@ from .const import (
     DEFAULT_OFF_PEAK_START,
     DEFAULT_TIMEZONE,
     DOMAIN,
+    SERVICE_REFRESH,
 )
 from .coordinator import EDFUsageCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.BUTTON, Platform.SENSOR]
 CARD_URL = f"/{DOMAIN}/edf-usage-card.js"
+DATA_SERVICE_REGISTERED = "service_registered"
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Set up EDF Usage."""
+
+    domain_data = hass.data.setdefault(DOMAIN, {})
+    if domain_data.get(DATA_SERVICE_REGISTERED):
+        return True
+
+    async def _async_handle_refresh_service(call: ServiceCall) -> None:
+        """Refresh all loaded EDF Usage entries."""
+
+        coordinators = [
+            entry_data[DATA_COORDINATOR]
+            for entry_data in hass.data.get(DOMAIN, {}).values()
+            if isinstance(entry_data, dict) and DATA_COORDINATOR in entry_data
+        ]
+        if not coordinators:
+            _LOGGER.warning("EDF Usage refresh requested but no config entries are loaded")
+            return
+
+        await asyncio.gather(
+            *(coordinator.async_request_refresh() for coordinator in coordinators)
+        )
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_REFRESH,
+        _async_handle_refresh_service,
+    )
+    domain_data[DATA_SERVICE_REGISTERED] = True
 
     return True
 

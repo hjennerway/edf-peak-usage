@@ -20,3 +20,5 @@ DEFAULT_TIMEZONE = "Europe/London"
 POLL_INTERVAL = timedelta(hours=12)
 
 DATA_COORDINATOR = "coordinator"
+
+SERVICE_REFRESH = "refresh"

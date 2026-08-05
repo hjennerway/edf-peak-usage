@@ -1,0 +1,3 @@
+refresh:
+  name: Refresh usage
+  description: Fetch the latest EDF usage values for all loaded EDF Usage entries.

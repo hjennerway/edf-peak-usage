@@ -7,6 +7,7 @@ This repository contains a Home Assistant custom integration for EDF Energy peak
 - A config-flow integration named `EDF Usage`.
 - Twice-daily polling of EDF's GB Kraken GraphQL API.
 - Sensors for weekly peak, off-peak, total usage, and percentages.
+- A `Refresh usage` button entity and `edf_usage.refresh` service for on-demand updates.
 - A custom Lovelace card named `custom:edf-usage-pie-card`.
 
 ## Install
@@ -24,7 +25,7 @@ url: /edf_usage/edf-usage-card.js
 type: module
 ```
 
-HACS needs a GitHub release with a valid version tag, for example `v0.1.5`. If the repository has no releases, HACS may fall back to a commit hash such as `561f66b`, which cannot be used as an integration version.
+HACS needs a GitHub release with a valid version tag, for example `v0.1.6`. If the repository has no releases, HACS may fall back to a commit hash such as `561f66b`, which cannot be used as an integration version.
 
 ### Manual
 
