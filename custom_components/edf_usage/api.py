@@ -163,7 +163,13 @@ class EDFUsageApi:
 
         raise EDFUsageError("EDF returned more usage pages than expected")
 
-    async def _graphql(self, query: str, variables: dict[str, Any]) -> dict[str, Any]:
+    async def _graphql(
+        self,
+        query: str,
+        variables: dict[str, Any],
+        *,
+        allow_token_refresh: bool = True,
+    ) -> dict[str, Any]:
         """Post a GraphQL request to EDF."""
 
         headers = {
@@ -183,6 +189,15 @@ class EDFUsageApi:
             payload: dict[str, Any] = await response.json()
         except ClientResponseError as err:
             if err.status in (401, 403):
+                if (
+                    allow_token_refresh
+                    and await self._async_refresh_authorization_header()
+                ):
+                    return await self._graphql(
+                        query,
+                        variables,
+                        allow_token_refresh=False,
+                    )
                 raise EDFUsageAuthError("EDF rejected the configured API token") from err
             raise EDFUsageError(f"EDF HTTP error {err.status}") from err
         except ValueError as err:
@@ -197,7 +212,17 @@ class EDFUsageApi:
                 for error in graphql_errors
                 if isinstance(error, dict)
             )
-            if "unauthorized" in messages.lower() or "authorization" in messages.lower():
+            messages_lower = messages.lower()
+            if "unauthorized" in messages_lower or "authorization" in messages_lower:
+                if (
+                    allow_token_refresh
+                    and await self._async_refresh_authorization_header()
+                ):
+                    return await self._graphql(
+                        query,
+                        variables,
+                        allow_token_refresh=False,
+                    )
                 raise EDFUsageAuthError(messages)
             raise EDFUsageError(messages)
 
@@ -228,6 +253,7 @@ class EDFUsageApi:
             payload = await self._graphql(
                 OBTAIN_KRAKEN_TOKEN_MUTATION,
                 {"input": {"APIKey": api_key}},
+                allow_token_refresh=False,
             )
         finally:
             self._authorization_header = previous_header
@@ -240,6 +266,19 @@ class EDFUsageApi:
         if not token:
             raise EDFUsageAuthError("EDF did not return a Kraken token for the API key")
         return _normalise_api_token(token)
+
+    async def _async_refresh_authorization_header(self) -> bool:
+        """Refresh a cached Kraken token when EDF rejects it."""
+
+        if (
+            self._authorization_header is None
+            or _looks_like_kraken_token(self._api_key)
+        ):
+            return False
+
+        self._authorization_header = None
+        self._authorization_header = await self._obtain_kraken_token(self._api_key)
+        return True
 
     def _parse_gbr_cost_of_usage(self, data: dict[str, Any]) -> list[UsageInterval]:
         """Parse the currently documented GB cost-of-usage shape."""
