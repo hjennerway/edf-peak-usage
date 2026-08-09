@@ -8,7 +8,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import EDFUsageApi, EDFUsageError, UsageSummary
+from .api import EDFUsageApi, EDFUsageAuthError, EDFUsageError, UsageSummary
 from .const import POLL_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
@@ -38,5 +38,13 @@ class EDFUsageCoordinator(DataUpdateCoordinator[UsageSummary]):
 
         try:
             return await self.api.async_get_weekly_usage()
+        except EDFUsageAuthError as err:
+            raise UpdateFailed(str(err)) from err
         except EDFUsageError as err:
+            if self.data is not None:
+                _LOGGER.warning(
+                    "Unable to refresh EDF usage; keeping previous data: %s",
+                    err,
+                )
+                return self.data
             raise UpdateFailed(str(err)) from err
