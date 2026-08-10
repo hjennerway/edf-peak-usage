@@ -38,6 +38,7 @@ class UsageSummary:
     off_peak_kwh: Decimal
     start: datetime
     end: datetime
+    last_updated: datetime
     intervals: tuple[UsageInterval, ...]
     source: str
 
@@ -367,6 +368,7 @@ class EDFUsageApi:
             off_peak_kwh=off_peak,
             start=start,
             end=end,
+            last_updated=end,
             intervals=tuple(intervals),
             source=source,
         )

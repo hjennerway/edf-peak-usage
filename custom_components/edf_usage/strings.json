@@ -53,6 +53,9 @@
       },
       "weekly_off_peak_percentage": {
         "name": "Weekly off-peak percentage"
+      },
+      "last_updated": {
+        "name": "Last updated"
       }
     }
   }

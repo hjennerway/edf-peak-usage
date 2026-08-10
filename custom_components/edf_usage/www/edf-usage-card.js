@@ -33,9 +33,9 @@ class EDFUsagePieCard extends HTMLElement {
     const total = peak.value + offPeak.value;
     const peakPercent = total > 0 ? (peak.value / total) * 100 : 0;
     const offPeakPercent = total > 0 ? 100 - peakPercent : 0;
-    const periodEnd =
-      peak.state?.attributes?.period_end || offPeak.state?.attributes?.period_end;
-    const updated = periodEnd ? this._formatDate(periodEnd) : "Waiting for EDF data";
+    const lastUpdated =
+      peak.state?.attributes?.last_updated || offPeak.state?.attributes?.last_updated;
+    const updated = lastUpdated ? this._formatDate(lastUpdated) : "Waiting for EDF data";
 
     this.shadowRoot.innerHTML = `
       <style>
