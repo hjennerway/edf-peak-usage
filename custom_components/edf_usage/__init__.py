@@ -83,13 +83,13 @@ async def _async_register_frontend(hass: HomeAssistant) -> None:
     try:
         if hasattr(hass.http, "async_register_static_paths"):
             result = hass.http.async_register_static_paths(
-                [StaticPathConfig(CARD_URL, card_path, True)]
+                [StaticPathConfig(CARD_URL, card_path, False)]
             )
         elif hasattr(hass.http, "register_static_path"):
             result = hass.http.register_static_path(
                 CARD_URL,
                 card_path,
-                cache_headers=True,
+                cache_headers=False,
             )
         else:
             _LOGGER.warning("Unable to register EDF Usage card static path")

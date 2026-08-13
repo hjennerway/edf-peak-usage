@@ -25,7 +25,7 @@ url: /edf_usage/edf-usage-card.js
 type: module
 ```
 
-HACS needs a GitHub release with a valid version tag, for example `v0.1.8`. If the repository has no releases, HACS may fall back to a commit hash such as `561f66b`, which cannot be used as an integration version.
+HACS needs a GitHub release with a valid version tag, for example `v0.1.9`. If the repository has no releases, HACS may fall back to a commit hash such as `561f66b`, which cannot be used as an integration version.
 
 ### Manual
 
@@ -42,18 +42,16 @@ type: module
 
 The integration asks for your EDF customer/account ID and EDF account-user API key. It exchanges that key for a short-lived Kraken token before polling usage. The default API endpoint is `https://api.edfgb-kraken.energy/v1/graphql/`.
 
-The `30-day bill` sensor uses EDF/Kraken cost-of-usage data and reports the usage cost in GBP. It is based on the previous rolling 30 days, not necessarily the exact billing statement period.
+The `30-day bill` sensor uses EDF/Kraken cost-of-usage data and reports the usage cost in GBP. It is based on the previous 30 complete days, not necessarily the exact billing statement period. If EDF does not expose costs for the account, `30-day usage` falls back to meter consumption and the bill may remain unknown.
 
 ## Card Example
 
 ```yaml
 type: custom:edf-usage-pie-card
 title: EDF weekly usage
-peak_entity: sensor.edf_usage_weekly_peak_usage
-off_peak_entity: sensor.edf_usage_weekly_off_peak_usage
 ```
 
-Entity IDs may differ depending on the account name Home Assistant assigns.
+The card auto-detects the EDF weekly peak/off-peak sensors. You can still provide `peak_entity` and `off_peak_entity` manually if you have multiple EDF accounts.
 
 ## Off-Peak Window
 

@@ -1,4 +1,2 @@
 type: custom:edf-usage-pie-card
 title: EDF weekly usage
-peak_entity: sensor.edf_usage_weekly_peak_usage
-off_peak_entity: sensor.edf_usage_weekly_off_peak_usage
