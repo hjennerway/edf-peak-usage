@@ -5,9 +5,6 @@ class EDFUsagePieCard extends HTMLElement {
   }
 
   setConfig(config) {
-    if (!config.peak_entity || !config.off_peak_entity) {
-      throw new Error("Define peak_entity and off_peak_entity");
-    }
     this.config = {
       title: "EDF weekly usage",
       peak_color: "#e04f3f",
@@ -28,8 +25,15 @@ class EDFUsagePieCard extends HTMLElement {
   render() {
     if (!this.config || !this._hass) return;
 
-    const peak = this._readState(this.config.peak_entity);
-    const offPeak = this._readState(this.config.off_peak_entity);
+    const peak = this._readState(this.config.peak_entity, "weekly_peak_usage", "Weekly peak usage");
+    const offPeak = this._readState(this.config.off_peak_entity, "weekly_off_peak_usage", "Weekly off-peak usage");
+    const missing = [peak, offPeak].filter((item) => !item.state);
+
+    if (missing.length > 0) {
+      this._renderMissing(missing);
+      return;
+    }
+
     const total = peak.value + offPeak.value;
     const peakPercent = total > 0 ? (peak.value / total) * 100 : 0;
     const offPeakPercent = total > 0 ? 100 - peakPercent : 0;
@@ -120,6 +124,11 @@ class EDFUsagePieCard extends HTMLElement {
           color: var(--secondary-text-color);
           font-size: 0.9rem;
         }
+        .entity {
+          color: var(--secondary-text-color);
+          font-size: 0.75rem;
+          overflow-wrap: anywhere;
+        }
         @media (max-width: 420px) {
           .content {
             grid-template-columns: 112px 1fr;
@@ -147,6 +156,7 @@ class EDFUsagePieCard extends HTMLElement {
               <span>Total</span>
               <strong>${this._formatKwh(total)}</strong>
             </div>
+            <div class="entity">${this._escape(peak.entityId)}<br>${this._escape(offPeak.entityId)}</div>
           </div>
         </div>
       </ha-card>
@@ -163,13 +173,61 @@ class EDFUsagePieCard extends HTMLElement {
     `;
   }
 
-  _readState(entityId) {
-    const state = this._hass.states[entityId];
+  _renderMissing(missing) {
+    this.shadowRoot.innerHTML = `
+      <style>
+        ha-card {
+          padding: 18px;
+          border-radius: 8px;
+        }
+        h2 {
+          margin: 0 0 10px;
+          font-size: 1.15rem;
+          font-weight: 600;
+          letter-spacing: 0;
+          color: var(--primary-text-color);
+        }
+        .message {
+          color: var(--secondary-text-color);
+          line-height: 1.45;
+        }
+        code {
+          color: var(--primary-text-color);
+          overflow-wrap: anywhere;
+        }
+      </style>
+      <ha-card>
+        <h2>${this._escape(this.config.title)}</h2>
+        <div class="message">
+          Missing EDF usage entities:<br>
+          ${missing.map((item) => `<code>${this._escape(item.label)}</code>`).join("<br>")}
+        </div>
+      </ha-card>
+    `;
+  }
+
+  _readState(entityId, key, label) {
+    const resolvedEntityId = entityId && this._hass.states[entityId]
+      ? entityId
+      : this._findEntityId(key, label);
+    const state = resolvedEntityId ? this._hass.states[resolvedEntityId] : undefined;
     const value = state ? Number.parseFloat(state.state) : 0;
     return {
+      entityId: resolvedEntityId,
+      label: entityId || label,
       state,
       value: Number.isFinite(value) ? value : 0,
     };
+  }
+
+  _findEntityId(key, label) {
+    const normalisedLabel = label.toLowerCase();
+    return Object.keys(this._hass.states).find((entityId) => {
+      if (!entityId.startsWith("sensor.")) return false;
+      const state = this._hass.states[entityId];
+      const friendlyName = String(state.attributes?.friendly_name || "").toLowerCase();
+      return entityId.endsWith(`_${key}`) || friendlyName.endsWith(normalisedLabel);
+    });
   }
 
   _formatKwh(value) {

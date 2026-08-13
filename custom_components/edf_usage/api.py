@@ -123,7 +123,8 @@ class EDFUsageApi:
 
         end = datetime.now(self._tzinfo)
         start = end - timedelta(days=7)
-        bill_start = end - timedelta(days=30)
+        bill_end = end.replace(hour=0, minute=0, second=0, microsecond=0)
+        bill_start = bill_end - timedelta(days=30)
 
         variables = {
             "accountNumber": self._customer_id,
@@ -164,7 +165,7 @@ class EDFUsageApi:
                 continue
 
             if intervals:
-                bill = await self._async_get_bill_summary(bill_start, end)
+                bill = await self._async_get_bill_summary(bill_start, bill_end)
                 return self._summarise(start, end, intervals, source, bill)
 
             errors.append(f"{source}: no usage intervals returned")
@@ -221,6 +222,18 @@ class EDFUsageApi:
                 return bill
         except EDFUsageError as err:
             errors.append(f"costOfUsage: {err}")
+
+        try:
+            intervals = await self._fetch_paginated_intervals(
+                METER_CONSUMPTION_QUERY,
+                variables,
+                self._parse_meter_consumption,
+                _connection_next_cursor,
+            )
+            if intervals:
+                return _parse_meter_consumption_bill(intervals)
+        except EDFUsageError as err:
+            errors.append(f"meterConsumption: {err}")
 
         return {
             "cost_pence": None,
@@ -664,6 +677,17 @@ def _parse_cost_of_usage_bill(
         "usage_kwh": usage,
         "currency": "GBP" if cost is not None else None,
         "source": "costOfUsage",
+    }
+
+
+def _parse_meter_consumption_bill(intervals: list[UsageInterval]) -> dict[str, Any]:
+    """Parse a 30-day usage-only summary from meter consumption."""
+
+    return {
+        "cost_pence": None,
+        "usage_kwh": sum((interval.kwh for interval in intervals), Decimal("0")),
+        "currency": None,
+        "source": "meterConsumption",
     }
 
 
