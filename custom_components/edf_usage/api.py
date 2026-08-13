@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -41,6 +41,13 @@ class UsageSummary:
     last_updated: datetime
     intervals: tuple[UsageInterval, ...]
     source: str
+    bill_30_day_cost_pence: Decimal | None = None
+    bill_30_day_usage_kwh: Decimal | None = None
+    bill_30_day_currency: str | None = None
+    bill_30_day_source: str | None = None
+    last_refresh_success: bool = True
+    last_refresh_attempt: datetime | None = None
+    last_refresh_error: str | None = None
 
     @property
     def total_kwh(self) -> Decimal:
@@ -63,6 +70,24 @@ class UsageSummary:
         if not self.total_kwh:
             return Decimal("0")
         return (self.off_peak_kwh / self.total_kwh) * Decimal("100")
+
+    @property
+    def bill_30_day_cost(self) -> Decimal | None:
+        """Return the last 30 days bill in pounds."""
+
+        if self.bill_30_day_cost_pence is None:
+            return None
+        return self.bill_30_day_cost_pence / Decimal("100")
+
+    def with_refresh_failure(self, error: str, attempted_at: datetime) -> UsageSummary:
+        """Return a copy marked with the most recent refresh failure."""
+
+        return replace(
+            self,
+            last_refresh_success=False,
+            last_refresh_attempt=attempted_at,
+            last_refresh_error=error,
+        )
 
 
 class EDFUsageApi:
@@ -98,6 +123,7 @@ class EDFUsageApi:
 
         end = datetime.now(self._tzinfo)
         start = end - timedelta(days=7)
+        bill_start = end - timedelta(days=30)
 
         variables = {
             "accountNumber": self._customer_id,
@@ -138,11 +164,63 @@ class EDFUsageApi:
                 continue
 
             if intervals:
-                return self._summarise(start, end, intervals, source)
+                bill = await self._async_get_bill_summary(bill_start, end)
+                return self._summarise(start, end, intervals, source, bill)
 
             errors.append(f"{source}: no usage intervals returned")
 
         raise EDFUsageError("; ".join(errors) or "EDF did not return usage data")
+
+    async def _async_get_bill_summary(
+        self,
+        start: datetime,
+        end: datetime,
+    ) -> dict[str, Any]:
+        """Fetch cost and consumption for the last 30 days."""
+
+        variables = {
+            "accountNumber": self._customer_id,
+            "periods": [
+                {
+                    "start": start.isoformat(),
+                    "end": end.isoformat(),
+                }
+            ],
+            "startAt": start.isoformat(),
+            "timezone": self._timezone,
+            "grouping": "DAY",
+            "fuelType": "ELECTRICITY",
+            "after": None,
+        }
+
+        errors: list[str] = []
+        try:
+            payload = await self._graphql(GBR_COST_OF_USAGE_QUERY, variables)
+            bill = _parse_gbr_bill(payload)
+            if bill["cost_pence"] is not None:
+                return bill
+        except EDFUsageError as err:
+            errors.append(f"gbrCostOfUsage: {err}")
+
+        try:
+            intervals = await self._fetch_paginated_intervals(
+                COST_OF_USAGE_QUERY,
+                variables,
+                self._parse_cost_of_usage,
+                _connection_next_cursor,
+            )
+            bill = _parse_cost_of_usage_bill(intervals)
+            if bill["cost_pence"] is not None:
+                return bill
+        except EDFUsageError as err:
+            errors.append(f"costOfUsage: {err}")
+
+        return {
+            "cost_pence": None,
+            "usage_kwh": None,
+            "currency": None,
+            "source": "; ".join(errors) if errors else None,
+        }
 
     async def _fetch_paginated_intervals(
         self,
@@ -350,6 +428,7 @@ class EDFUsageApi:
         end: datetime,
         intervals: list[UsageInterval],
         source: str,
+        bill: dict[str, Any],
     ) -> UsageSummary:
         """Classify intervals as peak or off-peak and total them."""
 
@@ -371,6 +450,11 @@ class EDFUsageApi:
             last_updated=end,
             intervals=tuple(intervals),
             source=source,
+            bill_30_day_cost_pence=bill["cost_pence"],
+            bill_30_day_usage_kwh=bill["usage_kwh"],
+            bill_30_day_currency=bill["currency"],
+            bill_30_day_source=bill["source"],
+            last_refresh_attempt=end,
         )
 
     def _is_off_peak(self, value: datetime | None) -> bool:
@@ -521,6 +605,49 @@ def _looks_like_kraken_token(value: str) -> bool:
     """Return whether a value looks like an already-issued Kraken JWT."""
 
     return value.startswith("eyJ") and value.count(".") == 2
+
+
+def _parse_gbr_bill(data: dict[str, Any]) -> dict[str, Any]:
+    """Parse a 30-day bill summary from the GB cost-of-usage response."""
+
+    periods = ((data.get("gbrCostOfUsage") or {}).get("periods")) or []
+    cost = Decimal("0")
+    usage = Decimal("0")
+    currency: str | None = None
+    found_cost = False
+
+    for period in periods:
+        period_cost = _optional_decimal(period.get("totalCost"))
+        if period_cost is not None:
+            cost += period_cost
+            found_cost = True
+
+        usage += _to_decimal(period.get("totalConsumption"))
+        currency = currency or period.get("currency")
+
+    return {
+        "cost_pence": cost if found_cost else None,
+        "usage_kwh": usage if periods else None,
+        "currency": currency,
+        "source": "gbrCostOfUsage",
+    }
+
+
+def _parse_cost_of_usage_bill(intervals: list[UsageInterval]) -> dict[str, Any]:
+    """Parse a 30-day bill summary from the legacy cost-of-usage response."""
+
+    interval_costs = [
+        interval.cost_pence for interval in intervals if interval.cost_pence is not None
+    ]
+    cost = sum(interval_costs, Decimal("0")) if interval_costs else None
+    usage = sum((interval.kwh for interval in intervals), Decimal("0")) if intervals else None
+
+    return {
+        "cost_pence": cost,
+        "usage_kwh": usage,
+        "currency": "GBP" if cost is not None else None,
+        "source": "costOfUsage",
+    }
 
 
 def _parse_datetime(value: Any) -> datetime | None:

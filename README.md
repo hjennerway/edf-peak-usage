@@ -6,7 +6,7 @@ This repository contains a Home Assistant custom integration for EDF Energy peak
 
 - A config-flow integration named `EDF Usage`.
 - Twice-daily polling of EDF's GB Kraken GraphQL API.
-- Sensors for weekly peak, off-peak, total usage, and percentages.
+- Sensors for weekly peak, off-peak, total usage, percentages, update status, and the estimated 30-day bill.
 - A `Refresh usage` button entity and `edf_usage.refresh` service for on-demand updates.
 - A custom Lovelace card named `custom:edf-usage-pie-card`.
 
@@ -25,7 +25,7 @@ url: /edf_usage/edf-usage-card.js
 type: module
 ```
 
-HACS needs a GitHub release with a valid version tag, for example `v0.1.6`. If the repository has no releases, HACS may fall back to a commit hash such as `561f66b`, which cannot be used as an integration version.
+HACS needs a GitHub release with a valid version tag, for example `v0.1.7`. If the repository has no releases, HACS may fall back to a commit hash such as `561f66b`, which cannot be used as an integration version.
 
 ### Manual
 
@@ -41,6 +41,8 @@ type: module
 4. Add the integration from Settings > Devices & services > Add Integration > EDF Usage.
 
 The integration asks for your EDF customer/account ID and EDF account-user API key. It exchanges that key for a short-lived Kraken token before polling usage. The default API endpoint is `https://api.edfgb-kraken.energy/v1/graphql/`.
+
+The `30-day bill` sensor uses EDF/Kraken cost-of-usage data and reports the usage cost in GBP. It is based on the previous rolling 30 days, not necessarily the exact billing statement period.
 
 ## Card Example
 

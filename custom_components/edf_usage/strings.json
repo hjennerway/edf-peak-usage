@@ -54,8 +54,20 @@
       "weekly_off_peak_percentage": {
         "name": "Weekly off-peak percentage"
       },
+      "bill_30_day_cost": {
+        "name": "30-day bill"
+      },
+      "bill_30_day_usage": {
+        "name": "30-day usage"
+      },
       "last_updated": {
         "name": "Last updated"
+      },
+      "last_refresh_attempt": {
+        "name": "Last refresh attempt"
+      },
+      "update_status": {
+        "name": "Update status"
       }
     }
   }

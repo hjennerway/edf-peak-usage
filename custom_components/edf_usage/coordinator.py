@@ -6,6 +6,7 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import EDFUsageApi, EDFUsageAuthError, EDFUsageError, UsageSummary
@@ -46,5 +47,5 @@ class EDFUsageCoordinator(DataUpdateCoordinator[UsageSummary]):
                     "Unable to refresh EDF usage; keeping previous data: %s",
                     err,
                 )
-                return self.data
+                return self.data.with_refresh_failure(str(err), dt_util.now())
             raise UpdateFailed(str(err)) from err

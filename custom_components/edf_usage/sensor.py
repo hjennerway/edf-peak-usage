@@ -29,7 +29,7 @@ from .coordinator import EDFUsageCoordinator
 class EDFUsageSensorDescription(SensorEntityDescription):
     """Description for an EDF usage sensor."""
 
-    value_fn: Callable[[UsageSummary], Decimal | datetime]
+    value_fn: Callable[[UsageSummary], Decimal | datetime | str | None]
 
 
 def _round(value: Decimal) -> float:
@@ -83,11 +83,42 @@ SENSORS: tuple[EDFUsageSensorDescription, ...] = (
         value_fn=lambda data: data.off_peak_percent,
     ),
     EDFUsageSensorDescription(
+        key="bill_30_day_cost",
+        name="30-day bill",
+        translation_key="bill_30_day_cost",
+        device_class=SensorDeviceClass.MONETARY,
+        native_unit_of_measurement="GBP",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.bill_30_day_cost,
+    ),
+    EDFUsageSensorDescription(
+        key="bill_30_day_usage",
+        name="30-day usage",
+        translation_key="bill_30_day_usage",
+        device_class=SensorDeviceClass.ENERGY,
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.bill_30_day_usage_kwh,
+    ),
+    EDFUsageSensorDescription(
         key="last_updated",
         name="Last updated",
         translation_key="last_updated",
         device_class=SensorDeviceClass.TIMESTAMP,
         value_fn=lambda data: data.last_updated,
+    ),
+    EDFUsageSensorDescription(
+        key="last_refresh_attempt",
+        name="Last refresh attempt",
+        translation_key="last_refresh_attempt",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        value_fn=lambda data: data.last_refresh_attempt,
+    ),
+    EDFUsageSensorDescription(
+        key="update_status",
+        name="Update status",
+        translation_key="update_status",
+        value_fn=lambda data: "ok" if data.last_refresh_success else "failed",
     ),
 )
 
@@ -121,7 +152,7 @@ class EDFUsageSensor(CoordinatorEntity[EDFUsageCoordinator], RestoreSensor):
 
         super().__init__(coordinator)
         self.entity_description = description
-        self._restored_native_value: float | datetime | None = None
+        self._restored_native_value: float | datetime | str | None = None
         self._restored_extra_state_attributes: dict[str, Any] | None = None
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
         self._attr_device_info = DeviceInfo(
@@ -161,12 +192,17 @@ class EDFUsageSensor(CoordinatorEntity[EDFUsageCoordinator], RestoreSensor):
                     "period_end",
                     "interval_count",
                     "source",
+                    "bill_30_day_currency",
+                    "bill_30_day_source",
                     "last_updated",
+                    "last_refresh_attempt",
+                    "last_refresh_error",
+                    "last_refresh_success",
                 }
             }
 
     @property
-    def native_value(self) -> float | datetime | None:
+    def native_value(self) -> float | datetime | str | None:
         """Return the current sensor value."""
 
         data = self.coordinator.data
@@ -174,6 +210,8 @@ class EDFUsageSensor(CoordinatorEntity[EDFUsageCoordinator], RestoreSensor):
             return self._restored_native_value
 
         value = self.entity_description.value_fn(data)
+        if value is None:
+            return None
         if isinstance(value, Decimal):
             return _round(value)
         return value
@@ -191,10 +229,19 @@ class EDFUsageSensor(CoordinatorEntity[EDFUsageCoordinator], RestoreSensor):
             "period_end": data.end.isoformat(),
             "interval_count": len(data.intervals),
             "source": data.source,
+            "bill_30_day_currency": data.bill_30_day_currency,
+            "bill_30_day_source": data.bill_30_day_source,
             "last_updated": data.last_updated.isoformat(),
+            "last_refresh_attempt": (
+                data.last_refresh_attempt.isoformat()
+                if data.last_refresh_attempt is not None
+                else None
+            ),
+            "last_refresh_error": data.last_refresh_error,
+            "last_refresh_success": data.last_refresh_success,
         }
 
-    def _coerce_restored_native_value(self, value: Any) -> float | datetime | None:
+    def _coerce_restored_native_value(self, value: Any) -> float | datetime | str | None:
         """Return a restored value in the native type expected by the sensor."""
 
         if value is None:
@@ -207,6 +254,9 @@ class EDFUsageSensor(CoordinatorEntity[EDFUsageCoordinator], RestoreSensor):
                 return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
             except ValueError:
                 return None
+
+        if self.entity_description.key == "update_status":
+            return str(value)
 
         try:
             return float(value)
