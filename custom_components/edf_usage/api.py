@@ -223,6 +223,80 @@ class EDFUsageApi:
         except EDFUsageError as err:
             errors.append(f"costOfUsage: {err}")
 
+        transaction_bill: dict[str, Any] | None = None
+        try:
+            transaction_bill = await self._async_get_transaction_bill_summary(start, end)
+            if transaction_bill["cost_pence"] is not None:
+                usage_bill = await self._async_get_usage_only_bill(variables)
+                if usage_bill["usage_kwh"] is not None:
+                    return {
+                        **transaction_bill,
+                        "usage_kwh": usage_bill["usage_kwh"],
+                        "source": f"{transaction_bill['source']} + {usage_bill['source']}",
+                    }
+                return transaction_bill
+        except EDFUsageError as err:
+            errors.append(f"transactions: {err}")
+
+        usage_bill = await self._async_get_usage_only_bill(variables)
+        if usage_bill["usage_kwh"] is not None:
+            if transaction_bill is not None and transaction_bill["cost_pence"] is not None:
+                return {
+                    **transaction_bill,
+                    "usage_kwh": usage_bill["usage_kwh"],
+                    "source": f"{transaction_bill['source']} + {usage_bill['source']}",
+                }
+            return usage_bill
+
+        if usage_bill["source"]:
+            errors.append(str(usage_bill["source"]))
+
+        return {
+            "cost_pence": None,
+            "usage_kwh": None,
+            "currency": None,
+            "source": "; ".join(errors) if errors else None,
+        }
+
+    async def _async_get_transaction_bill_summary(
+        self,
+        start: datetime,
+        end: datetime,
+    ) -> dict[str, Any]:
+        """Fetch issued energy charges posted in the last 30 days."""
+
+        payload = await self._graphql(
+            ACCOUNT_TRANSACTIONS_QUERY,
+            {
+                "accountNumber": self._customer_id,
+                "fromDate": start.date().isoformat(),
+                "toDate": end.date().isoformat(),
+            },
+        )
+
+        transactions = ((payload.get("account") or {}).get("transactions")) or {}
+        charges: list[Decimal] = []
+        for edge in transactions.get("edges") or []:
+            node = edge.get("node") or {}
+            if node.get("isReversed"):
+                continue
+            amount = _optional_decimal(node.get("amount"))
+            if amount is not None:
+                charges.append(amount)
+
+        return {
+            "cost_pence": sum(charges, Decimal("0")) if charges else None,
+            "usage_kwh": None,
+            "currency": "GBP" if charges else None,
+            "source": "account.transactions",
+        }
+
+    async def _async_get_usage_only_bill(
+        self,
+        variables: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Fetch a 30-day usage-only bill summary from meter consumption."""
+
         try:
             intervals = await self._fetch_paginated_intervals(
                 METER_CONSUMPTION_QUERY,
@@ -233,13 +307,18 @@ class EDFUsageApi:
             if intervals:
                 return _parse_meter_consumption_bill(intervals)
         except EDFUsageError as err:
-            errors.append(f"meterConsumption: {err}")
+            return {
+                "cost_pence": None,
+                "usage_kwh": None,
+                "currency": None,
+                "source": f"meterConsumption: {err}",
+            }
 
         return {
             "cost_pence": None,
             "usage_kwh": None,
             "currency": None,
-            "source": "; ".join(errors) if errors else None,
+            "source": "meterConsumption: no usage intervals returned",
         }
 
     async def _fetch_paginated_intervals(
@@ -585,6 +664,34 @@ query EDFMeterConsumption(
               }
             }
           }
+        }
+      }
+    }
+  }
+}
+"""
+
+ACCOUNT_TRANSACTIONS_QUERY = """
+query EDFAccountTransactions(
+  $accountNumber: String!,
+  $fromDate: Date!,
+  $toDate: Date!
+) {
+  account(accountNumber: $accountNumber) {
+    transactions(
+      first: 100,
+      fromDate: $fromDate,
+      toDate: $toDate,
+      transactionTypes: [ENERGY_CHARGES]
+    ) {
+      edges {
+        node {
+          __typename
+          amount
+          postedDate
+          title
+          isReversed
+          isIssued
         }
       }
     }

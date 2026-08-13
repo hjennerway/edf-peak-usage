@@ -25,7 +25,7 @@ url: /edf_usage/edf-usage-card.js
 type: module
 ```
 
-HACS needs a GitHub release with a valid version tag, for example `v0.1.9`. If the repository has no releases, HACS may fall back to a commit hash such as `561f66b`, which cannot be used as an integration version.
+HACS needs a GitHub release with a valid version tag, for example `v0.1.10`. If the repository has no releases, HACS may fall back to a commit hash such as `561f66b`, which cannot be used as an integration version.
 
 ### Manual
 
@@ -42,7 +42,7 @@ type: module
 
 The integration asks for your EDF customer/account ID and EDF account-user API key. It exchanges that key for a short-lived Kraken token before polling usage. The default API endpoint is `https://api.edfgb-kraken.energy/v1/graphql/`.
 
-The `30-day bill` sensor uses EDF/Kraken cost-of-usage data and reports the usage cost in GBP. It is based on the previous 30 complete days, not necessarily the exact billing statement period. If EDF does not expose costs for the account, `30-day usage` falls back to meter consumption and the bill may remain unknown.
+The `30-day bill` sensor uses EDF/Kraken cost-of-usage data first, then falls back to posted account energy-charge transactions. It is based on the previous 30 complete days, not necessarily the exact billing statement period. If EDF does not expose costs and no energy charges were posted in that period, the bill may remain unknown.
 
 ## Card Example
 
