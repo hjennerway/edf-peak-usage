@@ -25,7 +25,7 @@ url: /edf_usage/edf-usage-card.js
 type: module
 ```
 
-HACS needs a GitHub release with a valid version tag, for example `v0.1.7`. If the repository has no releases, HACS may fall back to a commit hash such as `561f66b`, which cannot be used as an integration version.
+HACS needs a GitHub release with a valid version tag, for example `v0.1.8`. If the repository has no releases, HACS may fall back to a commit hash such as `561f66b`, which cannot be used as an integration version.
 
 ### Manual
 

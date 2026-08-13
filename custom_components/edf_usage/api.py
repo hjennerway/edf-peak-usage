@@ -197,20 +197,27 @@ class EDFUsageApi:
         try:
             payload = await self._graphql(GBR_COST_OF_USAGE_QUERY, variables)
             bill = _parse_gbr_bill(payload)
-            if bill["cost_pence"] is not None:
+            if bill["cost_pence"] is not None or bill["usage_kwh"] is not None:
                 return bill
         except EDFUsageError as err:
             errors.append(f"gbrCostOfUsage: {err}")
 
         try:
-            intervals = await self._fetch_paginated_intervals(
-                COST_OF_USAGE_QUERY,
-                variables,
-                self._parse_cost_of_usage,
-                _connection_next_cursor,
-            )
-            bill = _parse_cost_of_usage_bill(intervals)
-            if bill["cost_pence"] is not None:
+            payload = await self._graphql(COST_OF_USAGE_QUERY, variables)
+            intervals = self._parse_cost_of_usage(payload)
+            after = _connection_next_cursor(payload)
+            for _ in range(10):
+                if after is None:
+                    break
+                payload_page = await self._graphql(
+                    COST_OF_USAGE_QUERY,
+                    {**variables, "after": after},
+                )
+                intervals.extend(self._parse_cost_of_usage(payload_page))
+                after = _connection_next_cursor(payload_page)
+
+            bill = _parse_cost_of_usage_bill(payload, intervals)
+            if bill["cost_pence"] is not None or bill["usage_kwh"] is not None:
                 return bill
         except EDFUsageError as err:
             errors.append(f"costOfUsage: {err}")
@@ -505,16 +512,17 @@ query EDFCostOfUsage(
   $startAt: DateTime,
   $timezone: String
 ) {
-  costOfUsage(
-    accountNumber: $accountNumber,
-    fuelType: $fuelType,
-    grouping: $grouping,
-    startAt: $startAt,
-    timezone: $timezone
-  ) {
+  costOfUsage(accountNumber: $accountNumber) {
     costEnabled
     direction
-    details(first: 100, after: $after) {
+    details(
+      first: 100,
+      after: $after,
+      fuelType: $fuelType,
+      grouping: $grouping,
+      startAt: $startAt,
+      timezone: $timezone
+    ) {
       usageKwh
       cost
       pageInfo {
@@ -633,14 +641,23 @@ def _parse_gbr_bill(data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _parse_cost_of_usage_bill(intervals: list[UsageInterval]) -> dict[str, Any]:
+def _parse_cost_of_usage_bill(
+    data: dict[str, Any],
+    intervals: list[UsageInterval],
+) -> dict[str, Any]:
     """Parse a 30-day bill summary from the legacy cost-of-usage response."""
+
+    details = (data.get("costOfUsage") or {}).get("details") or {}
+    cost = _optional_decimal(details.get("cost"))
+    usage = _optional_decimal(details.get("usageKwh"))
 
     interval_costs = [
         interval.cost_pence for interval in intervals if interval.cost_pence is not None
     ]
-    cost = sum(interval_costs, Decimal("0")) if interval_costs else None
-    usage = sum((interval.kwh for interval in intervals), Decimal("0")) if intervals else None
+    if cost is None and interval_costs:
+        cost = sum(interval_costs, Decimal("0"))
+    if usage is None and intervals:
+        usage = sum((interval.kwh for interval in intervals), Decimal("0"))
 
     return {
         "cost_pence": cost,
