@@ -390,8 +390,7 @@ class EDFUsageApi:
                 for error in graphql_errors
                 if isinstance(error, dict)
             )
-            messages_lower = messages.lower()
-            if "unauthorized" in messages_lower or "authorization" in messages_lower:
+            if _message_looks_like_auth_error(messages):
                 if (
                     allow_token_refresh
                     and await self._async_refresh_authorization_header()
@@ -847,6 +846,29 @@ def _label_is_off_peak(label: str | None) -> bool:
         return False
     normalised = label.replace("_", "").replace("-", "").replace(" ", "").lower()
     return "offpeak" in normalised or "night" in normalised
+
+
+def _message_looks_like_auth_error(message: str) -> bool:
+    """Return whether a GraphQL error indicates an expired or rejected token."""
+
+    message_lower = message.lower()
+    return any(
+        marker in message_lower
+        for marker in (
+            "auth",
+            "credential",
+            "forbidden",
+            "jwt",
+            "permission",
+            "invalid token",
+            "token expired",
+            "token has expired",
+            "invalid signature",
+            "signature expired",
+            "signature has expired",
+            "unauthorized",
+        )
+    )
 
 
 def _connection_next_cursor(data: dict[str, Any]) -> str | None:
