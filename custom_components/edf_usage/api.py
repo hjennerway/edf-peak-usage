@@ -195,10 +195,16 @@ class EDFUsageApi:
         }
 
         errors: list[str] = []
+        bill: dict[str, Any] = {
+            "cost_pence": None,
+            "usage_kwh": None,
+            "currency": None,
+            "source": None,
+        }
         try:
             payload = await self._graphql(GBR_COST_OF_USAGE_QUERY, variables)
-            bill = _parse_gbr_bill(payload)
-            if bill["cost_pence"] is not None or bill["usage_kwh"] is not None:
+            bill = _merge_bill_summaries(bill, _parse_gbr_bill(payload))
+            if _bill_summary_is_complete(bill):
                 return bill
         except EDFUsageError as err:
             errors.append(f"gbrCostOfUsage: {err}")
@@ -217,46 +223,34 @@ class EDFUsageApi:
                 intervals.extend(self._parse_cost_of_usage(payload_page))
                 after = _connection_next_cursor(payload_page)
 
-            bill = _parse_cost_of_usage_bill(payload, intervals)
-            if bill["cost_pence"] is not None or bill["usage_kwh"] is not None:
+            bill = _merge_bill_summaries(
+                bill,
+                _parse_cost_of_usage_bill(payload, intervals),
+            )
+            if _bill_summary_is_complete(bill):
                 return bill
         except EDFUsageError as err:
             errors.append(f"costOfUsage: {err}")
 
-        transaction_bill: dict[str, Any] | None = None
-        try:
-            transaction_bill = await self._async_get_transaction_bill_summary(start, end)
-            if transaction_bill["cost_pence"] is not None:
-                usage_bill = await self._async_get_usage_only_bill(variables)
-                if usage_bill["usage_kwh"] is not None:
-                    return {
-                        **transaction_bill,
-                        "usage_kwh": usage_bill["usage_kwh"],
-                        "source": f"{transaction_bill['source']} + {usage_bill['source']}",
-                    }
-                return transaction_bill
-        except EDFUsageError as err:
-            errors.append(f"transactions: {err}")
+        if bill["cost_pence"] is None:
+            try:
+                bill = _merge_bill_summaries(
+                    bill,
+                    await self._async_get_transaction_bill_summary(start, end),
+                )
+            except EDFUsageError as err:
+                errors.append(f"transactions: {err}")
 
-        usage_bill = await self._async_get_usage_only_bill(variables)
-        if usage_bill["usage_kwh"] is not None:
-            if transaction_bill is not None and transaction_bill["cost_pence"] is not None:
-                return {
-                    **transaction_bill,
-                    "usage_kwh": usage_bill["usage_kwh"],
-                    "source": f"{transaction_bill['source']} + {usage_bill['source']}",
-                }
-            return usage_bill
+        if bill["usage_kwh"] is None:
+            usage_bill = await self._async_get_usage_only_bill(variables)
+            bill = _merge_bill_summaries(bill, usage_bill)
+            if usage_bill["usage_kwh"] is None and usage_bill["source"]:
+                errors.append(str(usage_bill["source"]))
 
-        if usage_bill["source"]:
-            errors.append(str(usage_bill["source"]))
+        if bill["cost_pence"] is not None or bill["usage_kwh"] is not None:
+            return bill
 
-        return {
-            "cost_pence": None,
-            "usage_kwh": None,
-            "currency": None,
-            "source": "; ".join(errors) if errors else None,
-        }
+        return {**bill, "source": "; ".join(errors) if errors else None}
 
     async def _async_get_transaction_bill_summary(
         self,
@@ -795,6 +789,39 @@ def _parse_meter_consumption_bill(intervals: list[UsageInterval]) -> dict[str, A
         "currency": None,
         "source": "meterConsumption",
     }
+
+
+def _merge_bill_summaries(
+    current: dict[str, Any],
+    candidate: dict[str, Any],
+) -> dict[str, Any]:
+    """Fill missing bill values from another EDF data source."""
+
+    merged = dict(current)
+    candidate_contributed = False
+    for key in ("cost_pence", "usage_kwh"):
+        if merged.get(key) is None and candidate.get(key) is not None:
+            merged[key] = candidate[key]
+            candidate_contributed = True
+
+    if merged.get("currency") is None and candidate.get("currency") is not None:
+        merged["currency"] = candidate["currency"]
+
+    candidate_source = candidate.get("source")
+    if candidate_contributed and candidate_source:
+        current_source = merged.get("source")
+        if current_source and current_source != candidate_source:
+            merged["source"] = f"{current_source} + {candidate_source}"
+        elif not current_source:
+            merged["source"] = candidate_source
+
+    return merged
+
+
+def _bill_summary_is_complete(bill: dict[str, Any]) -> bool:
+    """Return whether both 30-day bill sensors have values."""
+
+    return bill.get("cost_pence") is not None and bill.get("usage_kwh") is not None
 
 
 def _parse_datetime(value: Any) -> datetime | None:
