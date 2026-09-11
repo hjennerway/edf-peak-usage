@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 import voluptuous as vol
@@ -65,6 +66,35 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             ),
             errors=errors,
+        )
+
+    async def async_step_reauth(
+        self,
+        entry_data: Mapping[str, Any],
+    ) -> Any:
+        """Start reauthentication for a rejected EDF API key."""
+
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> Any:
+        """Replace the rejected EDF API key and reload the entry."""
+
+        if user_input is not None:
+            return self.async_update_and_abort(
+                self._get_reauth_entry(),
+                data_updates={
+                    CONF_API_TOKEN: _normalise_api_token(
+                        user_input[CONF_API_TOKEN]
+                    )
+                },
+            )
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=vol.Schema({vol.Required(CONF_API_TOKEN): str}),
         )
 
 

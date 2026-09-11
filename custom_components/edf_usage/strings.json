@@ -8,10 +8,18 @@
           "customer_id": "EDF customer/account ID",
           "api_token": "EDF API key"
         }
+      },
+      "reauth_confirm": {
+        "title": "Reconnect EDF Usage",
+        "description": "EDF rejected the saved account-user API key. Enter a current EDF account-user API key to reconnect.",
+        "data": {
+          "api_token": "EDF API key"
+        }
       }
     },
     "abort": {
-      "already_configured": "This EDF account is already configured."
+      "already_configured": "This EDF account is already configured.",
+      "reauth_successful": "EDF Usage was reauthenticated successfully."
     }
   },
   "options": {

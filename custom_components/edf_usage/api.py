@@ -421,11 +421,20 @@ class EDFUsageApi:
         previous_header = self._authorization_header
         self._authorization_header = None
         try:
-            payload = await self._graphql(
-                OBTAIN_KRAKEN_TOKEN_MUTATION,
-                {"input": {"APIKey": api_key}},
-                allow_token_refresh=False,
-            )
+            try:
+                payload = await self._graphql(
+                    OBTAIN_KRAKEN_TOKEN_MUTATION,
+                    {"input": {"APIKey": api_key}},
+                    allow_token_refresh=False,
+                )
+            except EDFUsageAuthError:
+                raise
+            except EDFUsageError as err:
+                if str(err).strip().casefold().rstrip(".") == "invalid data":
+                    raise EDFUsageAuthError(
+                        "EDF rejected the configured account-user API key"
+                    ) from err
+                raise
         finally:
             self._authorization_header = previous_header
 

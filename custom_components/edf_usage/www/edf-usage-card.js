@@ -1,4 +1,4 @@
-const EDF_USAGE_CARD_VERSION = "0.1.13";
+const EDF_USAGE_CARD_VERSION = "0.1.14";
 
 class EDFUsagePieCard extends HTMLElement {
   constructor() {

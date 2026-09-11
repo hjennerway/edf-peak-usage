@@ -102,5 +102,26 @@ class BillSummaryTests(unittest.TestCase):
         self.assertIn(api_module.ACCOUNT_TRANSACTIONS_QUERY, calls)
 
 
+class AuthenticationTests(unittest.TestCase):
+    """Verify EDF token-exchange failures are reported as authentication errors."""
+
+    def test_invalid_data_during_token_exchange_is_auth_failure(self) -> None:
+        """EDF's generic invalid-data response should request reauthentication."""
+
+        api = api_module.EDFUsageApi.__new__(api_module.EDFUsageApi)
+        api._authorization_header = None
+
+        async def graphql(query, variables, *, allow_token_refresh=True):
+            raise api_module.EDFUsageError("Invalid data.")
+
+        api._graphql = graphql
+
+        with self.assertRaisesRegex(
+            api_module.EDFUsageAuthError,
+            "EDF rejected the configured account-user API key",
+        ):
+            asyncio.run(api._obtain_kraken_token("invalid-key"))
+
+
 if __name__ == "__main__":
     unittest.main()
