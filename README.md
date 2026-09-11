@@ -1,6 +1,6 @@
 # EDF Usage for Home Assistant
 
-This repository contains a Home Assistant custom integration for EDF Energy peak/off-peak electricity usage and a Lovelace custom card that renders the last week as a pie chart.
+This repository contains a Home Assistant custom integration for EDF Energy peak/off-peak electricity usage and a compact Lovelace card for the last week's usage.
 
 ## What it creates
 
@@ -8,7 +8,7 @@ This repository contains a Home Assistant custom integration for EDF Energy peak
 - Twice-daily polling of EDF's GB Kraken GraphQL API.
 - Sensors for weekly peak, off-peak, total usage, percentages, update status, and the estimated 30-day bill.
 - A `Refresh usage` button entity and `edf_usage.refresh` service for on-demand updates.
-- A custom Lovelace card named `custom:edf-usage-pie-card`.
+- A custom Lovelace card named `custom:edf-usage-pie-card` with a Mushroom-style proportional background.
 
 ## Install
 
@@ -52,6 +52,8 @@ title: EDF weekly usage
 ```
 
 The card auto-detects the EDF weekly peak/off-peak sensors. You can still provide `peak_entity` and `off_peak_entity` manually if you have multiple EDF accounts.
+
+The card's background is green from the left for the off-peak percentage and red for the remaining peak percentage. The off-peak percentage is also shown as the card's main value. Use `off_peak_color` and `peak_color` to override the default colours.
 
 ## Off-Peak Window
 

@@ -19,7 +19,7 @@ class EDFUsagePieCard extends HTMLElement {
   }
 
   getCardSize() {
-    return 3;
+    return 1;
   }
 
   render() {
@@ -47,129 +47,97 @@ class EDFUsagePieCard extends HTMLElement {
           display: block;
         }
         ha-card {
-          padding: 18px;
-          border-radius: 8px;
-        }
-        .header {
-          display: flex;
-          justify-content: space-between;
-          gap: 12px;
-          align-items: start;
-          margin-bottom: 18px;
-        }
-        h2 {
-          margin: 0;
-          font-size: 1.15rem;
-          font-weight: 600;
-          letter-spacing: 0;
-          color: var(--primary-text-color);
-        }
-        .updated {
-          color: var(--secondary-text-color);
-          font-size: 0.78rem;
-          text-align: right;
-          line-height: 1.3;
+          position: relative;
+          overflow: hidden;
+          padding: 12px;
+          border-radius: var(--ha-card-border-radius, 12px);
+          background: linear-gradient(
+            90deg,
+            ${this.config.off_peak_color} 0%,
+            ${this.config.off_peak_color} ${offPeakPercent}%,
+            ${this.config.peak_color} ${offPeakPercent}%,
+            ${this.config.peak_color} 100%
+          );
+          color: white;
         }
         .content {
-          display: grid;
-          grid-template-columns: 132px 1fr;
-          gap: 18px;
+          display: flex;
           align-items: center;
-        }
-        .pie {
-          width: 132px;
-          aspect-ratio: 1;
-          border-radius: 50%;
-          background:
-            radial-gradient(circle at center, var(--card-background-color) 0 47%, transparent 48%),
-            conic-gradient(
-              ${this.config.peak_color} 0 ${peakPercent}%,
-              ${this.config.off_peak_color} ${peakPercent}% 100%
-            );
-          box-shadow: inset 0 0 0 1px var(--divider-color);
-        }
-        .legend {
-          display: grid;
           gap: 12px;
-          min-width: 0;
+          min-height: 52px;
         }
-        .row {
+        .icon {
           display: grid;
-          grid-template-columns: 12px minmax(0, 1fr) auto;
-          gap: 9px;
-          align-items: center;
-        }
-        .swatch {
-          width: 12px;
-          height: 12px;
+          flex: 0 0 40px;
+          width: 40px;
+          height: 40px;
+          place-items: center;
           border-radius: 50%;
+          background: rgba(255, 255, 255, 0.22);
         }
-        .label {
-          color: var(--primary-text-color);
+        ha-icon {
+          --mdc-icon-size: 24px;
+          color: white;
+        }
+        .info {
+          flex: 1 1 auto;
           min-width: 0;
-          overflow-wrap: anywhere;
         }
-        .value {
-          color: var(--primary-text-color);
-          font-variant-numeric: tabular-nums;
+        .primary {
+          overflow: hidden;
+          font-size: 14px;
+          font-weight: 500;
+          line-height: 20px;
+          text-overflow: ellipsis;
           white-space: nowrap;
         }
-        .total {
-          margin-top: 4px;
-          padding-top: 12px;
-          border-top: 1px solid var(--divider-color);
-          display: flex;
-          justify-content: space-between;
-          gap: 12px;
-          color: var(--secondary-text-color);
-          font-size: 0.9rem;
+        .secondary {
+          overflow: hidden;
+          font-size: 12px;
+          line-height: 18px;
+          opacity: 0.9;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
-        .entity {
-          color: var(--secondary-text-color);
-          font-size: 0.75rem;
-          overflow-wrap: anywhere;
+        .percentage {
+          flex: 0 0 auto;
+          text-align: right;
+          font-variant-numeric: tabular-nums;
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
         }
-        @media (max-width: 420px) {
-          .content {
-            grid-template-columns: 112px 1fr;
-            gap: 14px;
-          }
-          .pie {
-            width: 112px;
-          }
-          ha-card {
-            padding: 14px;
+        .percentage strong {
+          display: block;
+          font-size: 22px;
+          line-height: 24px;
+        }
+        .percentage span {
+          display: block;
+          font-size: 11px;
+          line-height: 16px;
+          opacity: 0.9;
+        }
+        @media (max-width: 360px) {
+          .secondary {
+            display: none;
           }
         }
       </style>
-      <ha-card>
-        <div class="header">
-          <h2>${this._escape(this.config.title)}</h2>
-          <div class="updated">${this._escape(updated)}</div>
-        </div>
+      <ha-card title="Off-peak ${offPeakPercent.toFixed(1)}%, peak ${peakPercent.toFixed(1)}%">
         <div class="content">
-          <div class="pie" title="Peak ${peakPercent.toFixed(1)}%, off-peak ${offPeakPercent.toFixed(1)}%"></div>
-          <div class="legend">
-            ${this._legendRow("Peak", peak.value, peakPercent, this.config.peak_color)}
-            ${this._legendRow("Off-peak", offPeak.value, offPeakPercent, this.config.off_peak_color)}
-            <div class="total">
-              <span>Total</span>
-              <strong>${this._formatKwh(total)}</strong>
+          <div class="icon"><ha-icon icon="mdi:lightning-bolt"></ha-icon></div>
+          <div class="info">
+            <div class="primary">${this._escape(this.config.title)}</div>
+            <div class="secondary">
+              ${this._formatKwh(offPeak.value)} off-peak · ${this._formatKwh(peak.value)} peak · ${this._formatKwh(total)} total<br>
+              ${this._escape(updated)}
             </div>
-            <div class="entity">${this._escape(peak.entityId)}<br>${this._escape(offPeak.entityId)}</div>
+          </div>
+          <div class="percentage">
+            <strong>${offPeakPercent.toFixed(1)}%</strong>
+            <span>off-peak</span>
           </div>
         </div>
       </ha-card>
-    `;
-  }
-
-  _legendRow(label, value, percent, color) {
-    return `
-      <div class="row">
-        <span class="swatch" style="background:${this._escape(color)}"></span>
-        <span class="label">${this._escape(label)}</span>
-        <span class="value">${this._formatKwh(value)} - ${percent.toFixed(1)}%</span>
-      </div>
     `;
   }
 
@@ -259,6 +227,6 @@ customElements.define("edf-usage-pie-card", EDFUsagePieCard);
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "edf-usage-pie-card",
-  name: "EDF Usage Pie Card",
-  description: "Pie chart for EDF peak and off-peak weekly usage",
+  name: "EDF Usage Card",
+  description: "Mushroom-style EDF weekly usage card with an off-peak/peak background",
 });
