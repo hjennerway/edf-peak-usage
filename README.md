@@ -53,7 +53,7 @@ title: EDF weekly usage
 
 The card auto-detects the EDF weekly peak/off-peak sensors. You can still provide `peak_entity` and `off_peak_entity` manually if you have multiple EDF accounts.
 
-The card's background is green from the left for the off-peak percentage and red for the remaining peak percentage. The off-peak percentage is also shown as the card's main value. Use `off_peak_color` and `peak_color` to override the default colours.
+The card is a single horizontal bar with two proportional sections: green off-peak on the left and red peak on the right. Each section shows its percentage. Hover over the card for the kWh totals and last update time. Use `off_peak_color` and `peak_color` to override the default colours.
 
 ## Off-Peak Window
 

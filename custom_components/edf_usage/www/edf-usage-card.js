@@ -1,3 +1,5 @@
+const EDF_USAGE_CARD_VERSION = "0.1.12";
+
 class EDFUsagePieCard extends HTMLElement {
   constructor() {
     super();
@@ -47,94 +49,70 @@ class EDFUsagePieCard extends HTMLElement {
           display: block;
         }
         ha-card {
-          position: relative;
           overflow: hidden;
-          padding: 12px;
+          padding: 0;
           border-radius: var(--ha-card-border-radius, 12px);
-          background: linear-gradient(
-            90deg,
-            ${this.config.off_peak_color} 0%,
-            ${this.config.off_peak_color} ${offPeakPercent}%,
-            ${this.config.peak_color} ${offPeakPercent}%,
-            ${this.config.peak_color} 100%
-          );
-          color: white;
         }
-        .content {
+        .bar {
           display: flex;
-          align-items: center;
-          gap: 12px;
-          min-height: 52px;
+          width: 100%;
+          height: 58px;
+          background: var(--divider-color);
         }
-        .icon {
-          display: grid;
-          flex: 0 0 40px;
-          width: 40px;
-          height: 40px;
-          place-items: center;
-          border-radius: 50%;
-          background: rgba(255, 255, 255, 0.22);
-        }
-        ha-icon {
-          --mdc-icon-size: 24px;
-          color: white;
-        }
-        .info {
-          flex: 1 1 auto;
+        .segment {
+          display: flex;
+          box-sizing: border-box;
           min-width: 0;
-        }
-        .primary {
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
           overflow: hidden;
-          font-size: 14px;
-          font-weight: 500;
-          line-height: 20px;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .secondary {
-          overflow: hidden;
-          font-size: 12px;
-          line-height: 18px;
-          opacity: 0.9;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .percentage {
-          flex: 0 0 auto;
-          text-align: right;
+          color: white;
           font-variant-numeric: tabular-nums;
-          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+          text-align: center;
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
         }
-        .percentage strong {
-          display: block;
-          font-size: 22px;
-          line-height: 24px;
+        .off-peak {
+          flex: 0 0 ${offPeakPercent}%;
+          background: ${this.config.off_peak_color};
         }
-        .percentage span {
-          display: block;
+        .peak {
+          flex: 0 0 ${peakPercent}%;
+          background: ${this.config.peak_color};
+        }
+        .label {
+          max-width: 100%;
           font-size: 11px;
-          line-height: 16px;
-          opacity: 0.9;
+          line-height: 15px;
+          opacity: 0.92;
+          text-overflow: clip;
+          white-space: nowrap;
         }
-        @media (max-width: 360px) {
-          .secondary {
-            display: none;
-          }
+        .value {
+          max-width: 100%;
+          overflow: hidden;
+          font-size: 17px;
+          font-weight: 600;
+          line-height: 21px;
+          white-space: nowrap;
+        }
+        .compact .label {
+          display: none;
         }
       </style>
-      <ha-card title="Off-peak ${offPeakPercent.toFixed(1)}%, peak ${peakPercent.toFixed(1)}%">
-        <div class="content">
-          <div class="icon"><ha-icon icon="mdi:lightning-bolt"></ha-icon></div>
-          <div class="info">
-            <div class="primary">${this._escape(this.config.title)}</div>
-            <div class="secondary">
-              ${this._formatKwh(offPeak.value)} off-peak · ${this._formatKwh(peak.value)} peak · ${this._formatKwh(total)} total<br>
-              ${this._escape(updated)}
-            </div>
+      <ha-card title="${this._escape(`${this.config.title}: ${this._formatKwh(offPeak.value)} off-peak, ${this._formatKwh(peak.value)} peak. ${updated}`)}">
+        <div
+          class="bar"
+          role="img"
+          aria-label="Off-peak ${offPeakPercent.toFixed(1)} percent, peak ${peakPercent.toFixed(1)} percent"
+        >
+          <div class="segment off-peak${offPeakPercent < 18 ? " compact" : ""}">
+            <span class="label">Off-peak</span>
+            <span class="value">${offPeakPercent.toFixed(1)}%</span>
           </div>
-          <div class="percentage">
-            <strong>${offPeakPercent.toFixed(1)}%</strong>
-            <span>off-peak</span>
+          <div class="segment peak${peakPercent < 18 ? " compact" : ""}">
+            <span class="label">Peak</span>
+            <span class="value">${peakPercent.toFixed(1)}%</span>
           </div>
         </div>
       </ha-card>
@@ -228,5 +206,8 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: "edf-usage-pie-card",
   name: "EDF Usage Card",
-  description: "Mushroom-style EDF weekly usage card with an off-peak/peak background",
+  description: "Mushroom-style EDF weekly usage card with a two-section proportional bar",
+  version: EDF_USAGE_CARD_VERSION,
 });
+
+console.info(`[EDF Usage Card] Version ${EDF_USAGE_CARD_VERSION}`);
