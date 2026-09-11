@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 import logging
 
 from homeassistant.config_entries import ConfigEntry
@@ -9,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import EDFUsageApi, EDFUsageAuthError, EDFUsageError, UsageSummary
+from .api import EDFUsageApi, EDFUsageError, UsageSummary
 from .const import POLL_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,19 +34,25 @@ class EDFUsageCoordinator(DataUpdateCoordinator[UsageSummary]):
             update_interval=POLL_INTERVAL,
         )
         self.api = api
+        self.last_refresh_attempt: datetime | None = None
+        self.last_refresh_error: str | None = None
+        self.last_refresh_success: bool | None = None
 
     async def _async_update_data(self) -> UsageSummary:
         """Fetch data from EDF."""
 
+        attempted_at = dt_util.now()
+        self.last_refresh_attempt = attempted_at
         try:
-            return await self.api.async_get_weekly_usage()
-        except EDFUsageAuthError as err:
-            raise UpdateFailed(str(err)) from err
+            data = await self.api.async_get_weekly_usage()
         except EDFUsageError as err:
+            self.last_refresh_success = False
+            self.last_refresh_error = str(err)
+            _LOGGER.warning("Unable to refresh EDF usage: %s", err)
             if self.data is not None:
-                _LOGGER.warning(
-                    "Unable to refresh EDF usage; keeping previous data: %s",
-                    err,
-                )
-                return self.data.with_refresh_failure(str(err), dt_util.now())
+                return self.data.with_refresh_failure(str(err), attempted_at)
             raise UpdateFailed(str(err)) from err
+
+        self.last_refresh_success = True
+        self.last_refresh_error = None
+        return data

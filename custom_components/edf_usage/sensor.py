@@ -165,6 +165,12 @@ class EDFUsageSensor(CoordinatorEntity[EDFUsageCoordinator], RestoreSensor):
     def available(self) -> bool:
         """Return whether the entity can show a current or restored value."""
 
+        if (
+            self.entity_description.key in {"last_refresh_attempt", "update_status"}
+            and self.coordinator.last_refresh_attempt is not None
+        ):
+            return True
+
         return (
             self.coordinator.data is not None
             or self._restored_native_value is not None
@@ -205,6 +211,18 @@ class EDFUsageSensor(CoordinatorEntity[EDFUsageCoordinator], RestoreSensor):
     def native_value(self) -> float | datetime | str | None:
         """Return the current sensor value."""
 
+        if (
+            self.entity_description.key == "last_refresh_attempt"
+            and self.coordinator.last_refresh_attempt is not None
+        ):
+            return self.coordinator.last_refresh_attempt
+
+        if (
+            self.entity_description.key == "update_status"
+            and self.coordinator.last_refresh_success is not None
+        ):
+            return "ok" if self.coordinator.last_refresh_success else "failed"
+
         data = self.coordinator.data
         if data is None:
             return self._restored_native_value
@@ -222,24 +240,33 @@ class EDFUsageSensor(CoordinatorEntity[EDFUsageCoordinator], RestoreSensor):
 
         data = self.coordinator.data
         if data is None:
-            return self._restored_extra_state_attributes
+            attributes = dict(self._restored_extra_state_attributes or {})
+        else:
+            attributes = {
+                "period_start": data.start.isoformat(),
+                "period_end": data.end.isoformat(),
+                "interval_count": len(data.intervals),
+                "source": data.source,
+                "bill_30_day_currency": data.bill_30_day_currency,
+                "bill_30_day_source": data.bill_30_day_source,
+                "last_updated": data.last_updated.isoformat(),
+                "last_refresh_attempt": (
+                    data.last_refresh_attempt.isoformat()
+                    if data.last_refresh_attempt is not None
+                    else None
+                ),
+                "last_refresh_error": data.last_refresh_error,
+                "last_refresh_success": data.last_refresh_success,
+            }
 
-        return {
-            "period_start": data.start.isoformat(),
-            "period_end": data.end.isoformat(),
-            "interval_count": len(data.intervals),
-            "source": data.source,
-            "bill_30_day_currency": data.bill_30_day_currency,
-            "bill_30_day_source": data.bill_30_day_source,
-            "last_updated": data.last_updated.isoformat(),
-            "last_refresh_attempt": (
-                data.last_refresh_attempt.isoformat()
-                if data.last_refresh_attempt is not None
-                else None
-            ),
-            "last_refresh_error": data.last_refresh_error,
-            "last_refresh_success": data.last_refresh_success,
-        }
+        if self.coordinator.last_refresh_attempt is not None:
+            attributes["last_refresh_attempt"] = (
+                self.coordinator.last_refresh_attempt.isoformat()
+            )
+            attributes["last_refresh_error"] = self.coordinator.last_refresh_error
+            attributes["last_refresh_success"] = self.coordinator.last_refresh_success
+
+        return attributes or None
 
     def _coerce_restored_native_value(self, value: Any) -> float | datetime | str | None:
         """Return a restored value in the native type expected by the sensor."""
