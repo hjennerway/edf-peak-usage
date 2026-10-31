@@ -8,6 +8,7 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import config_entries
+from homeassistant.helpers import selector
 
 from .const import (
     CONF_API_TOKEN,
@@ -22,6 +23,12 @@ from .const import (
     DEFAULT_TIMEZONE,
     DOMAIN,
 )
+
+AUTH_DESCRIPTION_PLACEHOLDERS = {
+    "myaccount_url": "https://www.edfenergy.com/myaccount",
+    "setup_help_url": "https://github.com/hjennerway/edf-peak-usage#credentials-and-api-access",
+    "oauth_help_url": "https://auth.edfgb-kraken.energy/",
+}
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -62,17 +69,22 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_CUSTOMER_ID): str,
-                    vol.Required(CONF_API_TOKEN): str,
+                    vol.Required(CONF_API_TOKEN): selector.TextSelector(
+                        selector.TextSelectorConfig(
+                            type=selector.TextSelectorType.PASSWORD
+                        )
+                    ),
                 }
             ),
             errors=errors,
+            description_placeholders=AUTH_DESCRIPTION_PLACEHOLDERS,
         )
 
     async def async_step_reauth(
         self,
         entry_data: Mapping[str, Any],
     ) -> Any:
-        """Start reauthentication for a rejected EDF API key."""
+        """Start reauthentication for a rejected EDF key or access token."""
 
         return await self.async_step_reauth_confirm()
 
@@ -80,7 +92,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self,
         user_input: dict[str, Any] | None = None,
     ) -> Any:
-        """Replace the rejected EDF API key and reload the entry."""
+        """Replace the rejected EDF credential and reload the entry."""
 
         if user_input is not None:
             return self.async_update_and_abort(
@@ -94,7 +106,16 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="reauth_confirm",
-            data_schema=vol.Schema({vol.Required(CONF_API_TOKEN): str}),
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_API_TOKEN): selector.TextSelector(
+                        selector.TextSelectorConfig(
+                            type=selector.TextSelectorType.PASSWORD
+                        )
+                    ),
+                }
+            ),
+            description_placeholders=AUTH_DESCRIPTION_PLACEHOLDERS,
         )
 
 

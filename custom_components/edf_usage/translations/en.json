@@ -1,0 +1,89 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "EDF Usage",
+        "description": "Connect your EDF electricity account.\n\n1. Sign in to [EDF MyAccount]({myaccount_url}) and copy your account number from your account or a bill.\n2. Paste your EDF account-user API key below. This lets the integration obtain and renew access tokens automatically. If you do not have a key, contact EDF about API access.\n\n**Temporary browser token**\n\nIn a desktop browser, open Developer tools > Network > Fetch/XHR while signed in to MyAccount. Reload your usage page and look for a request to `api.edfgb-kraken.energy` containing `graphql`. In Request headers, copy the `Authorization` value if it contains a Kraken token beginning with `eyJ` (it may have a `Bearer` prefix). Paste it below.\n\nA browser token expires and cannot be renewed by this integration; you will need to reconnect with a fresh token. If no such header is visible, see the [credential guide]({setup_help_url}).\n\nAutomatic browser sign-in needs an [OAuth application approved by EDF]({oauth_help_url}); it is not available in this integration yet.",
+        "data": {
+          "customer_id": "EDF account number",
+          "api_token": "EDF API key or temporary access token"
+        },
+        "data_description": {
+          "customer_id": "Use the account number shown in EDF MyAccount or on a bill, not your meter number or email address.",
+          "api_token": "An account-user API key is recommended. A temporary Kraken token must be replaced when it expires. Treat either credential like a password."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reconnect EDF Usage",
+        "description": "EDF rejected the saved credential, or your temporary access token expired. Enter a current EDF account-user API key or a fresh Kraken access token.\n\n**Get a fresh browser token**\n\n1. Sign in to [EDF MyAccount]({myaccount_url}) in a desktop browser.\n2. Open Developer tools > Network > Fetch/XHR, then reload your usage page.\n3. Look for a request to `api.edfgb-kraken.energy` containing `graphql`. In Request headers, copy the `Authorization` value if it contains a Kraken token beginning with `eyJ` (it may have a `Bearer` prefix), then paste it below.\n\nBrowser tokens expire and cannot be renewed by this integration. An EDF account-user API key lets the integration renew access tokens automatically; contact EDF about API access if you need one. See the [credential guide]({setup_help_url}) for help.\n\nAutomatic browser sign-in requires an [OAuth application approved by EDF]({oauth_help_url}) and is not available in this integration yet.",
+        "data": {
+          "api_token": "EDF API key or temporary access token"
+        },
+        "data_description": {
+          "api_token": "Replace the rejected credential. Treat API keys and access tokens like passwords."
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "This EDF account is already configured.",
+      "reauth_successful": "EDF Usage was reauthenticated successfully."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "EDF Usage options",
+        "description": "Set the EDF GraphQL endpoint and the local off-peak window used when EDF does not return an explicit band label.",
+        "data": {
+          "graphql_endpoint": "GraphQL endpoint",
+          "timezone": "Timezone",
+          "off_peak_start": "Off-peak start",
+          "off_peak_end": "Off-peak end"
+        }
+      }
+    },
+    "error": {
+      "invalid_time": "Use HH:MM format, for example 23:00.",
+      "invalid_timezone": "Use an IANA timezone name, for example Europe/London."
+    }
+  },
+  "entity": {
+    "button": {
+      "refresh": {
+        "name": "Refresh usage"
+      }
+    },
+    "sensor": {
+      "weekly_peak_usage": {
+        "name": "Weekly peak usage"
+      },
+      "weekly_off_peak_usage": {
+        "name": "Weekly off-peak usage"
+      },
+      "weekly_total_usage": {
+        "name": "Weekly total usage"
+      },
+      "weekly_peak_percentage": {
+        "name": "Weekly peak percentage"
+      },
+      "weekly_off_peak_percentage": {
+        "name": "Weekly off-peak percentage"
+      },
+      "bill_30_day_cost": {
+        "name": "30-day bill"
+      },
+      "bill_30_day_usage": {
+        "name": "30-day usage"
+      },
+      "last_updated": {
+        "name": "Last updated"
+      },
+      "last_refresh_attempt": {
+        "name": "Last refresh attempt"
+      },
+      "update_status": {
+        "name": "Update status"
+      }
+    }
+  }
+}
